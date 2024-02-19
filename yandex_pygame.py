@@ -3,6 +3,7 @@ import os
 import sys
 
 pygame.init()
+pygame.mixer.init()
 pygame.display.set_caption('Pygame')
 size = WIDTH, HEIGHT = 1600, 900
 screen = pygame.display.set_mode(size)
@@ -28,6 +29,16 @@ def load_image(name, colorkey=None):
     return image
 
 
+def load_music(name, colorkey=None):
+    fullname = os.path.join('music', name)
+
+    if not os.path.isfile(fullname):
+        print(f"Файл с музыкой '{fullname}' не найден")
+        sys.exit()
+
+    pygame.mixer.music.load(fullname)
+
+
 def terminate():
     pygame.quit()
     sys.exit()
@@ -36,15 +47,69 @@ def terminate():
 def start_screen():
     fon = pygame.transform.scale(load_image('fon.png'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
+    image_start = pygame.transform.scale(load_image("start.png"), (300, 150))
+    start_rect = image_start.get_rect()
+    start_rect.center = (800, 400)
+    screen.blit(image_start, (650, 320))
+    image_settings = pygame.transform.scale(load_image('settings.png'), (300, 150))
+    settings_rect = image_settings.get_rect()
+    settings_rect.center = (800, 600)
+    screen.blit(image_settings, (650, 500))
+    image_title = pygame.transform.scale(load_image('title.png'), (1000, 150))
+    screen.blit(image_title, (310, 50))
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.KEYDOWN or \
-                    event.type == pygame.MOUSEBUTTONDOWN:
-                return  # начинаем игру
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if start_rect.collidepoint(mouse_pos):
+                    return  # начинаем игру
+                elif settings_rect.collidepoint(mouse_pos):
+                    settings()
         pygame.display.flip()
         clock.tick(FPS)
+
+
+def settings():
+    running = True
+    volume = 0.5
+    count = 0
+    font = pygame.font.Font(None, 30)
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                elif event.key == pygame.K_EQUALS:
+                    volume = min(1.0, volume + 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_MINUS:
+                    volume = max(0.0, volume - 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_p:
+                    if count == 0:
+                        pygame.mixer.music.pause()
+                        count += 1
+                    else:
+                        pygame.mixer.music.unpause()
+                        count -= 1
+
+        volume_text = font.render(f'Громкость: {int(volume * 100)}%', True, (255, 165, 0))
+        rules = font.render('Правила: равно - увеличение громкости, минус - уменьшение. Чтобы остановить/производить мелодию нужно нажать "P"(англ.)', True, (255, 165, 0))
+
+        screen.fill((0, 0, 0))  # Черный фон
+        screen.blit(volume_text, (10, screen.get_height() - 30))  # Текст громкости в левом нижнем углу
+        screen.blit(rules, (
+        screen.get_width() // 2 - rules.get_width() // 2, screen.get_height() // 2))  # Центрированный текст правил
+
+        pygame.display.flip()
+        clock.tick(30)
 
 
 def load_level(filename):
@@ -62,7 +127,7 @@ def load_level(filename):
 
 tile_image = {
     'wall': load_image('box.png'),
-    'empty': load_image('grass.png'),
+    'empty': load_image('grass1.png'),
 }
 player_image = load_image('mar.png')
 tile_width = tile_height = 50
@@ -126,9 +191,17 @@ class Camera:
 
 
 if __name__ == '__main__':
+    mouse_image = load_image('arrow.png')
+    mouse = pygame.sprite.Sprite()
+    mouse.image = mouse_image
+    mouse.rect = mouse_image.get_rect()
+    all_sprites.add(mouse)
+    pygame.mouse.set_visible(True)
+    load_music('music_fon.mp3')
+    pygame.mixer.music.play(-1)
+
     player, level_x, level_y = generate_level(load_level('level.txt'))
     camera = Camera()
-
     start_screen()
     running = True
     superman = None
@@ -154,11 +227,14 @@ if __name__ == '__main__':
                         player.rect.right += 50
                         if pygame.sprite.spritecollideany(player, wall_group):
                             player.rect.right -= 50
+            if event.type == pygame.MOUSEMOTION:
+                mouse.rect.topleft = event.pos
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
 
-        screen.fill('#000000')
+        fon_game = pygame.transform.scale(load_image('fon_game.jpg'), (WIDTH, HEIGHT))
+        screen.blit(fon_game, (0, 0))
         all_sprites.draw(screen)
         all_sprites.update()
         tile_group.draw(screen)
@@ -167,72 +243,3 @@ if __name__ == '__main__':
         clock.tick(FPS)
         pygame.display.flip()
     pygame.quit()
-
-    image = load_image('arrow.png')
-    cursor = pygame.sprite.Sprite()
-    cursor.image = image
-    cursor.rect = image.get_rect()
-    all_sprites = pygame.sprite.Group()
-    all_sprites.add(cursor)
-    pygame.mouse.set_visible(False)
-
-
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-                pygame.mouse.get_focused()
-            if event.type == pygame.MOUSEMOTION:
-                cursor.rect.topleft = event.pos
-        screen.fill((0, 0, 0))
-        clock.tick(fps)
-        all_sprites.draw(screen)
-        pygame.display.flip()
-    pygame.quit()
-
-
-# def terminate():
-#     pygame.quit()
-#     sys.exit()
-#
-#
-# def start_screen():
-#     fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
-#     screen.blit(fon, (0, 0))
-#     image_start = pygame.transform.scale(load_image("start.png"), (300, 150))
-#     screen.blit(image_start, (650, 320))
-#     image_settings = pygame.transform.scale(load_image('settings.png'), (300, 150))
-#     screen.blit(image_settings, (650, 500))
-#     load_image('title.png')
-#     def update(self, *args):
-#         if args and args[0].type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(args[0].pos):
-#             play()
-
-#if __name__ == '__main__':
-    # all_sprites = pygame.sprite.Group()
-    # all_sprites.add(Settings())
-    # all_sprites.add(Start())
-    # cursor_image = load_image('arrow.png')
-    # cursor = pygame.sprite.Sprite()
-    # cursor.rect = cursor_image.get_rect()
-    # all_sprites.add(cursor)
-    # pygame.mouse.set_visible(False)
-    # running = True
-    # fps = 60
-    # clock = pygame.time.Clock()
-    # while running:
-    #     for event in pygame.event.get():
-    #         if event.type == pygame.QUIT:
-    #             running = False
-    #         if event.type == pygame.MOUSEMOTION:
-    #             cursor.rect.topleft = event.pos
-    #         if event.type == pygame.MOUSEBUTTONDOWN:
-    #             all_sprites.update(event)
-    #
-    #     screen.blit(fon, (0, 0))
-    #     screen.blit(title, (475, 50))
-    #     clock.tick(fps)
-    #     all_sprites.draw(screen)
-    #     all_sprites.update()
-    #     pygame.display.flip()
-    # pygame.quit()

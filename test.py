@@ -1,8 +1,10 @@
 import pygame
 import os
 import sys
+import random
 
 pygame.init()
+pygame.mixer.init()
 pygame.display.set_caption('Pygame')
 size = WIDTH, HEIGHT = 1600, 900
 screen = pygame.display.set_mode(size)
@@ -28,6 +30,16 @@ def load_image(name, colorkey=None):
     return image
 
 
+def load_music(name, colorkey=None):
+    fullname = os.path.join('music', name)
+
+    if not os.path.isfile(fullname):
+        print(f"Файл с музыкой '{fullname}' не найден")
+        sys.exit()
+
+    pygame.mixer.music.load(fullname)
+
+
 def terminate():
     pygame.quit()
     sys.exit()
@@ -46,11 +58,27 @@ def start_screen():
     screen.blit(image_settings, (650, 500))
     image_title = pygame.transform.scale(load_image('title.png'), (1000, 150))
     screen.blit(image_title, (310, 50))
+    volume = 0.5
+    count = 0
 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_EQUALS:
+                    volume = min(1.0, volume + 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_MINUS:
+                    volume = max(0.0, volume - 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_p:
+                    if count == 0:
+                        pygame.mixer.music.pause()
+                        count += 1
+                    else:
+                        pygame.mixer.music.unpause()
+                        count -= 1
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 if start_rect.collidepoint(mouse_pos):
@@ -64,6 +92,7 @@ def start_screen():
 def settings():
     running = True
     volume = 0.5
+    count = 0
     font = pygame.font.Font(None, 30)
 
     while running:
@@ -72,18 +101,28 @@ def settings():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                elif event.key == pygame.K_UP:
+                if event.key == pygame.K_EQUALS:
                     volume = min(1.0, volume + 0.1)
-                elif event.key == pygame.K_DOWN:
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_MINUS:
                     volume = max(0.0, volume - 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_p:
+                    if count == 0:
+                        pygame.mixer.music.pause()
+                        count += 1
+                    else:
+                        pygame.mixer.music.unpause()
+                        count -= 1
 
-        volume_text = font.render(f'Volume: {int(volume * 100)}%', True, (0, 0, 0))
-        rules = font.render('Правила: стрелка вверх - увеличение громкости, вниз - уменьшение', True, (0, 0, 0))
-        screen.fill((255, 255, 255))
-        screen.blit(volume_text, (10, 10))
-        screen.blit(rules, (10, 40))
+        volume_text = font.render(f'Громкость: {int(volume * 100)}%', True, (255, 165, 0))
+        rules = font.render('Правила: равно - увеличение громкости, минус - уменьшение. Чтобы остановить/производить мелодию нужно нажать "P"(англ.)', True, (255, 165, 0))
+
+        screen.fill((0, 0, 0))  # Черный фон
+        screen.blit(volume_text, (10, screen.get_height() - 30))  # Текст громкости в левом нижнем углу
+        screen.blit(rules, (
+        screen.get_width() // 2 - rules.get_width() // 2, screen.get_height() // 2))  # Центрированный текст правил
+
         pygame.display.flip()
         clock.tick(30)
 
@@ -103,7 +142,8 @@ def load_level(filename):
 
 tile_image = {
     'wall': load_image('box.png'),
-    'empty': load_image('grass.png'),
+    'grass': (load_image('grass1.png'), load_image('grass2.bmp'))
+
 }
 player_image = load_image('mar.png')
 tile_width = tile_height = 50
@@ -117,6 +157,9 @@ class Tile(pygame.sprite.Sprite):
         self.image = tile_image[tile_type]
         if tile_type == 'wall':
             wall_group.add(self)
+        elif tile_type == 'grass':
+            r = random.randint(0, 1)
+            self.image = tile_image[tile_type][r]
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
@@ -139,11 +182,11 @@ def generate_level(level):
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == '.':
-                Tile('empty', x, y)
+                Tile('grass', x, y)
             elif level[y][x] == '#':
                 Tile('wall', x, y)
             elif level[y][x] == '@':
-                Tile('empty', x, y)
+                Tile('grass', x, y)
                 new_player = Player(x, y)
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
@@ -167,9 +210,20 @@ class Camera:
 
 
 if __name__ == '__main__':
+    mouse_image = load_image('arrow.png')
+    mouse = pygame.sprite.Sprite()
+    mouse.image = mouse_image
+    mouse.rect = mouse_image.get_rect()
+    all_sprites.add(mouse)
+    pygame.mouse.set_visible(True)
+    load_music('music_fon.mp3')
+    pygame.mixer.music.play(-1)
+
+    volume = 0.5
+    count = 0
+
     player, level_x, level_y = generate_level(load_level('level.txt'))
     camera = Camera()
-
     start_screen()
     running = True
     superman = None
@@ -177,6 +231,22 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_EQUALS:
+                    volume = min(1.0, volume + 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_MINUS:
+                    volume = max(0.0, volume - 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                elif event.key == pygame.K_p:
+                    if count == 0:
+                        pygame.mixer.music.pause()
+                        count += 1
+                    else:
+                        pygame.mixer.music.unpause()
+                        count -= 1
+
             if player is not None:
                 if pygame.sprite.spritecollideany(player, wall_group) is None:
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
@@ -195,11 +265,14 @@ if __name__ == '__main__':
                         player.rect.right += 50
                         if pygame.sprite.spritecollideany(player, wall_group):
                             player.rect.right -= 50
+            if event.type == pygame.MOUSEMOTION:
+                mouse.rect.topleft = event.pos
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
 
-        screen.fill('#000000')
+        fon_game = pygame.transform.scale(load_image('fon_game.jpg'), (WIDTH, HEIGHT))
+        screen.blit(fon_game, (0, 0))
         all_sprites.draw(screen)
         all_sprites.update()
         tile_group.draw(screen)
