@@ -126,7 +126,7 @@ def load_level(filename):
 
 
 tile_image = {
-    'wall': load_image('box.png'),
+    'wall': load_image('wood.png'),
     'empty': load_image('grass1.png'),
 }
 player_image = load_image('mar.png')

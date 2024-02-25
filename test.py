@@ -101,22 +101,23 @@ def settings():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_EQUALS:
-                    volume = min(1.0, volume + 0.1)
-                    pygame.mixer.music.set_volume(volume)
-                elif event.key == pygame.K_MINUS:
-                    volume = max(0.0, volume - 0.1)
-                    pygame.mixer.music.set_volume(volume)
-                elif event.key == pygame.K_p:
+                if event.key == pygame.K_p:
                     if count == 0:
                         pygame.mixer.music.pause()
                         count += 1
                     else:
                         pygame.mixer.music.unpause()
                         count -= 1
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_EQUALS]:
+            volume = min(1.0, volume + 0.01)
+            pygame.mixer.music.set_volume(volume)
+        elif keys[pygame.K_MINUS]:
+            volume = max(0.0, volume - 0.01)
+            pygame.mixer.music.set_volume(volume)
 
         volume_text = font.render(f'Громкость: {int(volume * 100)}%', True, (255, 165, 0))
-        rules = font.render('Правила: равно - увеличение громкости, минус - уменьшение. Чтобы остановить/производить мелодию нужно нажать "P"(англ.)', True, (255, 165, 0))
+        rules = font.render('Правила: "=/+" - увеличение громкости, "-" - уменьшение. Чтобы остановить/производить мелодию нужно нажать "P"(англ.)', True, (255, 165, 0))
 
         screen.fill((0, 0, 0))  # Черный фон
         screen.blit(volume_text, (10, screen.get_height() - 30))  # Текст громкости в левом нижнем углу
@@ -233,13 +234,7 @@ if __name__ == '__main__':
                 running = False
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_EQUALS:
-                    volume = min(1.0, volume + 0.1)
-                    pygame.mixer.music.set_volume(volume)
-                elif event.key == pygame.K_MINUS:
-                    volume = max(0.0, volume - 0.1)
-                    pygame.mixer.music.set_volume(volume)
-                elif event.key == pygame.K_p:
+                if event.key == pygame.K_p:
                     if count == 0:
                         pygame.mixer.music.pause()
                         count += 1
@@ -247,26 +242,61 @@ if __name__ == '__main__':
                         pygame.mixer.music.unpause()
                         count -= 1
 
-            if player is not None:
-                if pygame.sprite.spritecollideany(player, wall_group) is None:
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-                        player.rect.top += 50
-                        if pygame.sprite.spritecollideany(player, wall_group):
-                            player.rect.top -= 50
-                    if event.type == pygame.KEYUP and event.key == pygame.K_UP:
-                        player.rect.top -= 50
-                        if pygame.sprite.spritecollideany(player, wall_group):
-                            player.rect.top += 50
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                        player.rect.right -= 50
-                        if pygame.sprite.spritecollideany(player, wall_group):
-                            player.rect.right += 50
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                        player.rect.right += 50
-                        if pygame.sprite.spritecollideany(player, wall_group):
-                            player.rect.right -= 50
             if event.type == pygame.MOUSEMOTION:
                 mouse.rect.topleft = event.pos
+
+        keys = pygame.key.get_pressed()
+
+        if keys[pygame.K_EQUALS]:
+            volume = min(1.0, volume + 0.01)
+            pygame.mixer.music.set_volume(volume)
+        elif keys[pygame.K_MINUS]:
+            volume = max(0.0, volume - 0.01)
+            pygame.mixer.music.set_volume(volume)
+
+        if player is not None:
+            if pygame.sprite.spritecollideany(player, wall_group) is None:
+                if keys[pygame.K_LEFT]:
+                    player.rect.right -= 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.right += 5
+                elif keys[pygame.K_RIGHT]:
+                    player.rect.right += 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.right -= 5
+                elif keys[pygame.K_UP]:
+                    player.rect.top -= 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.top += 5
+                elif keys[pygame.K_DOWN]:
+                    player.rect.top += 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.top -= 5
+                if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
+                    player.rect.right -= 5
+                    player.rect.top -= 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.right += 5
+                        player.rect.top += 5
+                elif keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
+                    player.rect.right -= 5
+                    player.rect.top += 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.right += 5
+                        player.rect.top -= 5
+                elif keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
+                    player.rect.right += 5
+                    player.rect.top -= 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.right -= 5
+                        player.rect.top += 5
+                elif keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
+                    player.rect.right += 5
+                    player.rect.top += 5
+                    if pygame.sprite.spritecollideany(player, wall_group):
+                        player.rect.right -= 5
+                        player.rect.top -= 5
+
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
