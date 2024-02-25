@@ -142,9 +142,12 @@ def load_level(filename):
 
 
 tile_image = {
-    'wall': load_image('box.png'),
-    'grass': (load_image('grass1.png'), load_image('grass2.bmp'))
-
+    'wall': load_image('wall1.bmp'),
+    'grass': (load_image('grass1.png'), load_image('grass2.bmp')),
+    'plants': (load_image('flower1.png'), load_image('flower2.png'), load_image('flower3.png'), load_image('tree.png'),
+               load_image('kust.png')),
+    'tower': load_image('tower.png'),
+    'vorota': load_image('vorota.png')
 }
 player_image = load_image('mar.png')
 tile_width = tile_height = 50
@@ -156,12 +159,29 @@ class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tile_group, all_sprites)
         self.image = tile_image[tile_type]
-        if tile_type == 'wall':
+        if tile_type == 'wall' or tile_type == 'tower':
             wall_group.add(self)
+            self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+        elif tile_type == 'vorota':
+            wall_group.add(self)
+            self.image = tile_image[tile_type]
+            self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
         elif tile_type == 'grass':
             r = random.randint(0, 1)
             self.image = tile_image[tile_type][r]
-        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+            self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+        elif tile_type == 'plants':
+            rand = random.randint(0, 9)
+            if rand < 5:
+                self.image = tile_image[tile_type][rand]
+                if rand != 4 and rand != 3:
+                    self.rect = self.image.get_rect().move(tile_width * pos_x + 20, tile_height * pos_y + 20)
+                else:
+                    self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+            else:
+                r = random.randint(0, 1)
+                self.image = tile_image['grass'][r]
+                self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
 player_group = pygame.sprite.Group()
@@ -184,11 +204,18 @@ def generate_level(level):
         for x in range(len(level[y])):
             if level[y][x] == '.':
                 Tile('grass', x, y)
+                Tile('plants', x, y)
             elif level[y][x] == '#':
                 Tile('wall', x, y)
+            elif level[y][x] == 'W':
+                Tile('wall', x, y)
+                Tile('tower', x, y)
             elif level[y][x] == '@':
                 Tile('grass', x, y)
                 new_player = Player(x, y)
+            elif level[y][x] == 'O':
+                Tile('wall', x, y)
+                Tile('vorota', x, y)
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
@@ -257,44 +284,52 @@ if __name__ == '__main__':
         if player is not None:
             if pygame.sprite.spritecollideany(player, wall_group) is None:
                 if keys[pygame.K_LEFT]:
+                    if keys[pygame.K_UP]:
+                        player.rect.top -= 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.top += 5
+                    elif keys[pygame.K_DOWN]:
+                        player.rect.top += 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.top -= 5
                     player.rect.right -= 5
                     if pygame.sprite.spritecollideany(player, wall_group):
                         player.rect.right += 5
                 elif keys[pygame.K_RIGHT]:
+                    if keys[pygame.K_UP]:
+                        player.rect.top -= 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.top += 5
+                    elif keys[pygame.K_DOWN]:
+                        player.rect.top += 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.top -= 5
                     player.rect.right += 5
                     if pygame.sprite.spritecollideany(player, wall_group):
                         player.rect.right -= 5
                 elif keys[pygame.K_UP]:
+                    if keys[pygame.K_LEFT]:
+                        player.rect.right -= 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.right += 5
+                    elif keys[pygame.K_RIGHT]:
+                        player.rect.right += 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.right -= 5
                     player.rect.top -= 5
                     if pygame.sprite.spritecollideany(player, wall_group):
                         player.rect.top += 5
                 elif keys[pygame.K_DOWN]:
-                    player.rect.top += 5
-                    if pygame.sprite.spritecollideany(player, wall_group):
-                        player.rect.top -= 5
-                if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
-                    player.rect.right -= 5
-                    player.rect.top -= 5
-                    if pygame.sprite.spritecollideany(player, wall_group):
-                        player.rect.right += 5
-                        player.rect.top += 5
-                elif keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
-                    player.rect.right -= 5
-                    player.rect.top += 5
-                    if pygame.sprite.spritecollideany(player, wall_group):
-                        player.rect.right += 5
-                        player.rect.top -= 5
-                elif keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
-                    player.rect.right += 5
-                    player.rect.top -= 5
-                    if pygame.sprite.spritecollideany(player, wall_group):
+                    if keys[pygame.K_LEFT]:
                         player.rect.right -= 5
-                        player.rect.top += 5
-                elif keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
-                    player.rect.right += 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.right += 5
+                    elif keys[pygame.K_RIGHT]:
+                        player.rect.right += 5
+                        if pygame.sprite.spritecollideany(player, wall_group):
+                            player.rect.right -= 5
                     player.rect.top += 5
                     if pygame.sprite.spritecollideany(player, wall_group):
-                        player.rect.right -= 5
                         player.rect.top -= 5
 
         camera.update(player)
