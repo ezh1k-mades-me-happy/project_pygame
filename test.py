@@ -11,6 +11,8 @@ screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
 FPS = 60
 clock = pygame.time.Clock()
+stay_event = pygame.USEREVENT + 1
+pygame.time.set_timer(stay_event, 50)
 
 
 def load_image(name, colorkey=None):
@@ -98,8 +100,7 @@ def settings():
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                terminate()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_p:
                     if count == 0:
@@ -117,12 +118,25 @@ def settings():
             pygame.mixer.music.set_volume(volume)
 
         volume_text = font.render(f'Громкость: {int(volume * 100)}%', True, (255, 165, 0))
-        rules = font.render('Правила: "=/+" - увеличение громкости, "-" - уменьшение. Чтобы остановить/производить мелодию нужно нажать "P"(англ.)', True, (255, 165, 0))
-
+        lines = [
+            'Правила: "=/+" - увеличение громкости, "-" - уменьшение.',
+            'Чтобы остановить/производить мелодию нужно нажать "P"(англ.)',
+            '------------------------------------------------------------',
+            'Чтобы пройти игру вам нужно спасти принцессу из замка,',
+            'преодолевая разные трудности на своем пути.',
+            'Но можете не переживать, проиграть нельзя, потому что',
+            'властелин времени похитил почти все время у Бога этой игры,',
+            'и поэтому он не успел создать монстров, чтобы играть было еще',
+            'увлекательнее!'
+        ]
         screen.fill((0, 0, 0))  # Черный фон
         screen.blit(volume_text, (10, screen.get_height() - 30))  # Текст громкости в левом нижнем углу
-        screen.blit(rules, (
-        screen.get_width() // 2 - rules.get_width() // 2, screen.get_height() // 2))  # Центрированный текст правил
+        otstup = 50
+        for line in lines:
+            text = font.render(line, True, (255, 165, 0))
+            screen.blit(text,
+                        (screen.get_width() // 2 - text.get_width() // 2, screen.get_height() // 2 - 300 + otstup))
+            otstup += 50
 
         pygame.display.flip()
         clock.tick(30)
@@ -147,12 +161,13 @@ tile_image = {
     'plants': (load_image('flower1.png'), load_image('flower2.png'), load_image('flower3.png'), load_image('tree.png'),
                load_image('kust.png')),
     'tower': load_image('tower.png'),
-    'vorota': load_image('vorota.png')
+    'vorota': load_image('vorota.png'),
+    'princess': load_image('tower_with_princess.jpg')
 }
-player_image = load_image('mar.png')
 tile_width = tile_height = 50
 tile_group = pygame.sprite.Group()
 wall_group = pygame.sprite.Group()
+princess_group = pygame.sprite.Group()
 
 
 class Tile(pygame.sprite.Sprite):
@@ -182,17 +197,30 @@ class Tile(pygame.sprite.Sprite):
                 r = random.randint(0, 1)
                 self.image = tile_image['grass'][r]
                 self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+        elif tile_type == 'princess':
+            princess_group.add(self)
+            self.image = tile_image[tile_type]
+            self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
 player_group = pygame.sprite.Group()
+images_stay = [load_image('HeroStop1.png'), load_image('HeroStop2.png'), load_image('HeroStop3.png'),
+               load_image('HeroStop4.png'), load_image('HeroStop5.png'), load_image('HeroStop6.png')]
+images_move_right = [load_image('HeroMoveRight1.png'), load_image('HeroMoveRight2.png')]
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites)
-        self.image = player_image
+        self.images_stay = images_stay
+        self.current_image = 0
+        self.image = self.images_stay[self.current_image]
         self.rect = self.image.get_rect().move(
-            tile_width * pos_x + 15, tile_height * pos_y + 5)
+            tile_width * pos_x, tile_height * pos_y)
+
+    def update(self):
+        self.current_image = (self.current_image + 1) % len(self.images_stay)
+        self.image = self.images_stay[self.current_image]
 
 
 player = None
@@ -216,6 +244,9 @@ def generate_level(level):
             elif level[y][x] == 'O':
                 Tile('wall', x, y)
                 Tile('vorota', x, y)
+            elif level[y][x] == 'Q':
+                Tile('grass', x, y)
+                Tile('princess', x, y)
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
@@ -235,6 +266,35 @@ class Camera:
     def update(self, target):
         self.dx = -(target.rect.x + target.rect.w // 2 - WIDTH // 2)
         self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT // 2)
+
+
+def win():
+    font = pygame.font.Font(None, 40)
+    lines = ['{----------------------}',
+             'Поздравляем! Рыцарь спас принцессу!',
+             'Рыцарь и принцесса объявили народу свою любовь',
+             'и свадьба была у них самая прекрасная из распрекрасных.',
+             'Они жили долго и счастливо, заботясь друг о друге,',
+             'помогая крестьянам и защищая свое королевство от любых опасностей.',
+             'Их история стала легендой, передаваемой из поколения в поколение,',
+             'напоминая всем о том, что любовь, доброта и храбрость всегда побеждают!',
+             '{----------------------}'
+             ]
+    screen.fill((0, 0, 0))  # Черный фон
+    otstup = 50
+    for line in lines:
+        text = font.render(line, True, (255, 165, 0))
+        screen.blit(text, (screen.get_width() // 2 - text.get_width() // 2, screen.get_height() // 2 - 300 + otstup))
+        otstup += 50
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        pygame.display.flip()
+
+    terminate()
 
 
 if __name__ == '__main__':
@@ -331,6 +391,8 @@ if __name__ == '__main__':
                     player.rect.top += 5
                     if pygame.sprite.spritecollideany(player, wall_group):
                         player.rect.top -= 5
+                if pygame.sprite.spritecollideany(player, princess_group):
+                    win()
 
         camera.update(player)
         for sprite in all_sprites:
@@ -342,6 +404,7 @@ if __name__ == '__main__':
         all_sprites.update()
         tile_group.draw(screen)
         player_group.draw(screen)
+        player_group.update()
 
         clock.tick(FPS)
         pygame.display.flip()
